@@ -2,6 +2,7 @@ streamlit
 yfinance
 pandas
 numpy
-matplotlib
 pmdarima
 scikit-learn
+plotly
+streamlit_option_menu

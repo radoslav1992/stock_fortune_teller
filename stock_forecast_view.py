@@ -2,10 +2,11 @@ import yfinance as yf
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 from sklearn.ensemble import RandomForestRegressor
 import pmdarima as pm
 from datetime import date
+from streamlit_option_menu import option_menu
 
 # Constants
 TICKER_LIST = {
@@ -19,6 +20,15 @@ TICKER_LIST = {
     'NVDA': 'Nvidia',
     'Custom': 'Custom Ticker'
 }
+
+# Page Configurations
+# Streamlit UI enhancements
+st.set_page_config(page_title="Hybrid Stock Price Forecasting", layout="wide")
+st.markdown("""
+    <style>
+    .main {background-color: #F5F5F5;}
+    </style>
+    """, unsafe_allow_html=True)
 
 @st.cache_data
 def download_stock_data(ticker, start_date, end_date):
@@ -41,34 +51,48 @@ def train_arima_model(series):
     return pm.auto_arima(series, seasonal=True, m=5, suppress_warnings=True)
 
 def main():
-    """Main function to run the Streamlit app."""
-    st.title('Hybrid Stock Price Forecasting App')
+    # Enhanced Navigation Bar
+    with st.sidebar:
+        selected = option_menu("Main Menu", ["Home", "Forecast", "About"],
+                               icons=['house', 'graph-up', 'info-circle'],
+                               menu_icon="cast", default_index=0)
 
-    # Ticker selection
-    formatted_tickers = [f"{ticker} - {name}" for ticker, name in TICKER_LIST.items()]
-    selected_ticker = st.selectbox('Select Stock Ticker', formatted_tickers)
+    if selected == "Home":
+        st.title('Welcome to the Hybrid Stock Price Forecasting App')
+        st.write("Navigate to the Forecast section to start.")
 
-    # Conditional text input for custom ticker
-    if selected_ticker == 'Custom - Custom Ticker':
-        custom_ticker = st.text_input('Enter your custom ticker')
-        if custom_ticker:
-            selected_ticker = custom_ticker.upper()  # or handle it as needed
-    ticker = selected_ticker.split(' - ')[0]
+    elif selected == "Forecast":
+        st.title('Hybrid Stock Price Forecasting App')
 
-    # Date range selection
-    start_date = st.date_input('Start Date', date(2020, 1, 1))
-    end_date = st.date_input('End Date', date.today())
+        # Ticker selection with improved layout
+        st.sidebar.header("Settings")
+        selected_ticker = st.sidebar.selectbox('Select Stock Ticker', [f"{ticker} - {name}" for ticker, name in TICKER_LIST.items()])
 
-    if start_date < end_date and ticker:
-        stock_data = download_stock_data(ticker, start_date, end_date)
+        # Conditional text input for custom ticker
+        if selected_ticker == 'Custom - Custom Ticker':
+            custom_ticker = st.sidebar.text_input('Enter your custom ticker')
+            if custom_ticker:
+                selected_ticker = custom_ticker.upper()
+        ticker = selected_ticker.split(' - ')[0]
 
-        if not stock_data.empty:
-            prepare_stock_data(stock_data)
-            display_stock_forecast(stock_data, end_date)
+        # Date range selection with enhanced sidebar
+        start_date = st.sidebar.date_input('Start Date', date(2020, 1, 1))
+        end_date = st.sidebar.date_input('End Date', date.today())
+
+        # Main content layout
+        if start_date < end_date and ticker:
+            stock_data = download_stock_data(ticker, start_date, end_date)
+            if not stock_data.empty:
+                prepare_stock_data(stock_data)
+                display_stock_forecast(stock_data, end_date)
+            else:
+                st.error('No data available for the selected ticker.')
         else:
-            st.error('No data available for the selected ticker.')
-    else:
-        st.error('Please select a valid date range and ticker.')
+            st.error('Please select a valid date range and ticker.')
+
+    elif selected == "About":
+        st.title("About this App")
+        st.write("This app provides a hybrid stock price forecast using ARIMA and Random Forest models. Developed with Streamlit.")
 
 def prepare_stock_data(data):
     """Prepare stock data for modeling."""
@@ -88,23 +112,19 @@ def display_stock_forecast(data, end_date):
 
 
 def plot_stock_forecast(data, arima_model, rf_model, end_date):
-    """Plot the stock forecast based on ARIMA and Random Forest models."""
+    """Plot the stock forecast based on ARIMA and Random Forest models using Plotly."""
     forecast_period = calculate_forecast_period(data, end_date)
     last_actual_date = data['Date'].iloc[-1]
     future_dates = calculate_future_dates(last_actual_date, forecast_period)
 
-    # Convert future_dates to a NumPy array of days since the start for prediction
     future_days = np.array([(date - data['Date'].min()).days for date in future_dates])
-    future_days_reshaped = future_days.reshape(-1, 1)  # Reshaping to 2D array
+    future_days_reshaped = future_days.reshape(-1, 1)
 
-    # Generate ARIMA and RF forecasts
     arima_forecast = arima_model.predict(n_periods=forecast_period)
-    rf_forecast = rf_model.predict(future_days_reshaped)  # Using the reshaped array
+    rf_forecast = rf_model.predict(future_days_reshaped)
 
-    # Combine ARIMA and RF forecasts for the hybrid forecast
     hybrid_forecast = arima_forecast + rf_forecast
 
-    # Now plot the forecasts alongside the actual prices
     plot_forecast_graph(data, future_dates, arima_forecast, hybrid_forecast)
 
 def calculate_forecast_period(data, end_date):
@@ -118,23 +138,21 @@ def calculate_future_dates(last_actual_date, forecast_period):
 
 
 def plot_forecast_graph(data, future_dates, arima_forecast, hybrid_forecast):
-    """Plot the actual prices, ARIMA forecast, and Hybrid forecast."""
-    plt.figure(figsize=(10, 5))
-    plt.plot(data['Date'], data['Close'], label='Actual Prices', color='blue')
+    """Plot the actual prices, ARIMA forecast, and Hybrid forecast using Plotly."""
+    fig = go.Figure()
 
-    # Ensure that future_dates starts right after the last date in the actual data
-    last_actual_date = data['Date'].iloc[-1]
-    future_dates = calculate_future_dates(last_actual_date, len(arima_forecast))
+    # Actual Prices
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], mode='lines', name='Actual Prices'))
 
-    # Plot the ARIMA forecast and the hybrid forecast using the correct dates
-    plt.plot(future_dates, arima_forecast, label='ARIMA Predictions', color='green', linestyle='dashed')
-    plt.plot(future_dates, hybrid_forecast, label='Hybrid Forecast', color='red', linestyle='dashed')
+    # ARIMA Predictions
+    fig.add_trace(go.Scatter(x=future_dates, y=arima_forecast, mode='lines', name='ARIMA Predictions', line=dict(dash='dot')))
 
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.title('Stock Price Forecast')
-    plt.legend()
-    st.pyplot(plt)
+    # Hybrid Forecast
+    fig.add_trace(go.Scatter(x=future_dates, y=hybrid_forecast, mode='lines', name='Hybrid Forecast', line=dict(dash='dot')))
+
+    fig.update_layout(title='Stock Price Forecast', xaxis_title='Date', yaxis_title='Price', legend_title='Legend')
+    st.plotly_chart(fig, use_container_width=True)
+
 
 if __name__ == '__main__':
     main()
