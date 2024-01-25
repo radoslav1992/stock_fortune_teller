@@ -15,7 +15,9 @@ TICKER_LIST = {
     'AMZN': 'Amazon',
     'TSLA': 'Tesla',
     'FB': 'Facebook',
-    'NFLX': 'Netflix'
+    'NFLX': 'Netflix',
+    'NVDA': 'Nvidia',
+    'Custom': 'Custom Ticker'
 }
 
 @st.cache_data
@@ -45,6 +47,12 @@ def main():
     # Ticker selection
     formatted_tickers = [f"{ticker} - {name}" for ticker, name in TICKER_LIST.items()]
     selected_ticker = st.selectbox('Select Stock Ticker', formatted_tickers)
+
+    # Conditional text input for custom ticker
+    if selected_ticker == 'Custom - Custom Ticker':
+        custom_ticker = st.text_input('Enter your custom ticker')
+        if custom_ticker:
+            selected_ticker = custom_ticker.upper()  # or handle it as needed
     ticker = selected_ticker.split(' - ')[0]
 
     # Date range selection
