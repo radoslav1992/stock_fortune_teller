@@ -26,7 +26,16 @@ TICKER_LIST = {
 st.set_page_config(page_title="Hybrid Stock Price Forecasting", layout="wide")
 st.markdown("""
     <style>
-    .main {background-color: #F5F5F5;}
+    .reportview-container {
+        background: #FFFFFF;
+        color: #111111;
+    }
+    .sidebar .sidebar-content {
+        background: #F0F2F6;
+    }
+    h1 {
+        color: #000000;
+    }
     </style>
     """, unsafe_allow_html=True)
 
